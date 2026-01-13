@@ -2,68 +2,63 @@
 
 ![GitHub Workflow Status](https://github.com/danheck12/aws-reliability-sandbox/actions/workflows/deploy.yml/badge.svg)
 
-![Terraform Validate](https://img.shields.io/badge/Terraform-validated-brightgreen)
-
-
-Production-style reliability engineering sandbox built on AWS using ECS Fargate, Terraform, GitHub Actions, and Prometheus/Grafana.  
-This project demonstrates **reliability ownership end-to-end**: infrastructure as code, observability, SLO-driven alerting, controlled failure, incident response, and automation.
-
-> This is not a tutorial project. It is intentionally designed to mirror how internal platform / SRE teams build, operate, and harden real production systems.
+A senior-level AWS reliability sandbox focused on SLO-driven infrastructure, high availability, observability, failure testing, and automated CI/CD.
 
 ---
 
 ## Table of Contents
-- [Goals](#-goals)
-- [Architecture](#-architecture)
-- [Tech Stack](#-tech-stack)
-- [Repository Structure](#-repository-structure)
-- [Getting Started](#-getting-started)
-- [Reliability Model](#-reliability-model)
-- [Controlled Failure](#-controlled-failure)
-- [Incident Response](#-incident-response)
-- [CI/CD](#-cicd)
-- [Cost Awareness](#-cost-awareness)
-- [Future Work](#-future-work)
 
-## 🎯 Goals
-
-- Demonstrate **reliability as an engineering discipline**, not just “DevOps tooling”
-- Practice **incident response, root cause analysis, and prevention**
-- Build a **production-style ECS platform** with real failure modes
-- Implement **SLO-driven alerting** and meaningful observability
-- Show **automation, CI/CD, and infrastructure validation**
+1. [Goals](#goals)
+2. [Architecture](#architecture)
+3. [Tech Stack](#tech-stack)
+4. [Repository Structure](#repository-structure)
+5. [Getting Started](#getting-started)
+6. [Usage Examples](#usage-examples)
+7. [Reliability Model](#reliability-model)
+8. [Controlled Failure](#controlled-failure)
+9. [Incident Response](#incident-response)
+10. [CI/CD](#cicd)
+11. [Cost Awareness](#cost-awareness)
+12. [Roadmap](#roadmap)
+13. [Author](#author)
 
 ---
 
-## 🏗️ Architecture
+## Goals
 
-High-level flow:
+This project demonstrates how to design and operate a reliable, observable, and automated service on AWS using infrastructure-as-code, container deployments, and monitoring practices that mirror real production workflows.
+
+---
+
+## Architecture
 
 Users
 |
-Application Load Balancer
+ALB (Application Load Balancer)
 |
 ECS Fargate (API Service)
 |
-Prometheus -> Alertmanager
+Prometheus → Alertmanager → (Slack/PagerDuty or GitHub Issues)
 |
 Grafana Dashboards
 
-All infrastructure is provisioned with **Terraform**.  
-Deployments are handled via **GitHub Actions using AWS OIDC (no static credentials)**.
+yaml
+Copy code
+
+All infrastructure is provisioned with Terraform. Deployments are handled via GitHub Actions using AWS OIDC (no stored AWS keys).
 
 ---
 
-## 🔧 Tech Stack
+## Tech Stack
 
-**Cloud & Infra**
-- AWS (VPC, ALB, ECS Fargate, ECR, CloudWatch)
-- Terraform (remote state, modules, env separation)
+**Cloud + Infrastructure**
+- AWS: VPC, ALB, ECS Fargate, ECR, CloudWatch
+- Terraform remote state (S3 + DynamoDB)
 
 **Application**
-- Python (FastAPI)
-- Structured logging
+- FastAPI (Python)
 - Prometheus metrics endpoint
+- Configurable fault injection
 
 **Observability**
 - Prometheus
@@ -71,237 +66,169 @@ Deployments are handled via **GitHub Actions using AWS OIDC (no static credentia
 - Alertmanager
 
 **CI/CD**
-- GitHub Actions
-- OIDC authentication to AWS
-- Automated container build + ECS deploy
-
-**Reliability**
-- SLO-based alerting (error rate, latency)
-- Controlled failure experiments
-- Runbooks and incident templates
+- GitHub Actions with AWS OIDC
+- Build + push + ECS force deploy
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 .
 ├── terraform/
-│ └── envs/staging/ # VPC, ECS, ALB, ECR, Cloud Map
+│ └── envs/staging/ # AWS infra: VPC, ECS, ALB, ECR
 ├── services/
-│ └── api/ # FastAPI service w/ metrics + failure injection
+│ └── api/ # FastAPI app (metrics + error/latency endpoints)
 ├── observability/
 │ ├── prometheus/
 │ ├── rules/
 │ └── alertmanager/
 ├── chaos/
-│ └── experiments/ # Controlled failure scenarios
-├── runbooks/ # Incident response guides
-├── incidents/ # Postmortems & timelines
-└── .github/workflows/ # CI/CD pipelines
+│ └── experiments/ # Controlled failure playbooks
+├── runbooks/ # Incident work instructions
+├── incidents/ # Incident writeups & analysis
+└── .github/workflows/ # CI/CD workflows
 
----
+yaml
+Copy code
 
 ---
 
 ## Getting Started
 
-> These steps provision real AWS infrastructure. Make sure you understand the cost implications before applying.
+These steps will provision AWS infrastructure and deploy the API.
 
 ### Prerequisites
 
-- AWS account with admin access
-- AWS CLI configured (`aws sts get-caller-identity` should work)
-- Terraform ≥ 1.5
+- AWS account with permissions to create VPC, ECS, ALB, etc.
+- AWS CLI configured (`aws sts get-caller-identity` must succeed)
+- Terraform v1.5+
 - Docker
-- GitHub account with repo access
+- GitHub repo with Actions enabled
 
-### Clone the repo
+### Provision Infrastructure
 
+```bash
 git clone git@github.com:danheck12/aws-reliability-sandbox.git
 cd aws-reliability-sandbox
-Provision infrastructure
-bash
-Copy code
+
 cd terraform/envs/staging
 terraform init
 terraform apply -auto-approve
-Build & deploy the API
-Deployment is handled via GitHub Actions using AWS OIDC.
+Terraform outputs:
 
-Any push to main that changes services/api will:
+alb_dns (example: xyz123abc.us-east-2.elb.amazonaws.com)
 
-Build the container
+ecr_api repository URL
 
-Push to ECR
-
-Deploy to ECS
-
-To trigger a deploy:
+Trigger Deployment
+Deployment is done automatically via GitHub Actions on push to main.
 
 bash
 Copy code
 git commit --allow-empty -m "Trigger deploy"
 git push
-Validate
+Validate:
+
 bash
 Copy code
-curl http://<ALB_DNS>/healthz
-curl http://<ALB_DNS>/metrics
-You should see:
+ALB=$(terraform output -raw alb_dns)
+curl --fail http://$ALB/healthz
+curl http://$ALB/metrics | head
+Usage Examples
+Once deployed, you can interact with the service:
 
-Healthy response from /healthz
-
-Prometheus metrics output from /metrics
-
-yaml
-Copy code
-
----
-
-# 4️⃣ Why this structure matters (career-level insight)
-
-This layout tells a reviewer:
-
-> “This person thinks in terms of systems lifecycle, not just tools.”
-
-Specifically:
-- **TOC at top** → you respect reader time
-- **Getting Started before Reliability** → you understand onboarding flow
-- **Reliability sections grouped** → you’re framing this as an operational platform
-
-That’s exactly how senior infra/SRE docs are written internally at good companies.
-
----
-
-# 5️⃣ What I want you to do now
-
-1. Add the **Table of Contents** under the intro
-2. Add the **Getting Started** section after Repository Structure
-3. Commit and push:
-
-```bash
-git add README.md
-git commit -m "Add table of contents and getting started section to README"
-git push
-
-## 📊 Reliability Model
-
-### Service Level Objectives (SLOs)
-
-| Metric        | Target  |
-|--------------|---------|
-| Availability | 99.9%   |
-| Error Rate   | < 2%    |
-| Latency p95  | < 300ms |
-
-Alerting is designed to be **signal-based**, not noisy, and will be expanded to multi-window burn-rate alerts.
-
----
-
-## 🔬 Controlled Failure
-
-The service includes built-in fault injection:
-
-| Endpoint     | Purpose                     |
-|-------------|-----------------------------|
-| `/error`    | Inject 5xx at configurable rate |
-| `/latency`  | Inject artificial latency   |
-| Task kills  | ECS service scaling / stops |
-| Bad deploys | Misconfig / broken image    |
-
-Each experiment is documented under:
-
-chaos/experiments/
-
-With:
-- Hypothesis
-- Steps
-- Expected outcome
-- Observed behavior
-
----
-
-## 🚨 Incident Response
-
-Runbooks live in:
-
-runbooks/
-
-Incident writeups live in:
-
-incidents/
-
-Each incident includes:
-- Timeline
-- Impact analysis
-- Root cause (5 Whys)
-- Corrective actions
-
-This mirrors real on-call + postmortem workflows.
-
----
-
-## 🚀 CI/CD
-
-Every push to `main`:
-
-1. Builds the container
-2. Pushes to ECR
-3. Forces new ECS deployment
-4. Uses AWS OIDC (no long-lived secrets)
-
-Workflow:
-.github/workflows/deploy.yml
-
-yaml
-Copy code
-
----
-
-## 💰 Cost Awareness
-
-This stack uses:
-- NAT Gateway
-- ALB
-- Fargate
-
-When not actively working:
+Fetch Health
 bash
+Copy code
+curl http://$ALB/healthz
+Generate Latency
+bash
+Copy code
+curl http://$ALB/latency?ms=500
+Trigger Error Pattern
+bash
+Copy code
+curl http://$ALB/error
+Reliability Model
+This service is built with measurable SLIs/SLOs:
+
+Metric	Target	Meaning
+Availability	99.9%	Minimal downtime SLA indicator
+Error Rate	< 2%	Error noise threshold
+Latency p95	< 300ms	Good responsiveness benchmark
+
+Error budget burn rate alerts guide escalation vs. action.
+
+Controlled Failure
+This project includes fault injection experiments:
+
+5xx spike via /error
+
+Injected latency via /latency
+
+Task restarts via ECS desired count changes
+
+Broken deploys to exercise rollback/runbooks
+
+Experiments are documented in chaos/experiments.
+
+Incident Response
+Guided runbooks in runbooks/ capture how to respond to common alerts.
+Incident writeups in incidents/ include:
+
+Timeline
+
+Root cause analysis (5 Whys)
+
+Corrective actions
+
+CI/CD
+On every push to main, GitHub Actions:
+
+Builds Docker image
+
+Pushes to ECR
+
+Forces ECS service redeploy via:
+
+bash
+Copy code
+aws ecs update-service \
+  --cluster aws-reliability-sandbox-staging \
+  --service aws-reliability-sandbox-staging-api \
+  --force-new-deployment
+AWS authentication is done via OIDC, so no static credentials are stored.
+
+Cost Awareness
+This architecture uses:
+
+NAT Gateway
+
+Application Load Balancer
+
+Fargate tasks
+
+Expected minimal monthly cost if idle: ~$10–$25.
+Destroy infrastructure when not needed:
+
+bash
+Copy code
 cd terraform/envs/staging
-terraform destroy
-Remote state (S3 + DynamoDB) can be retained.
+terraform destroy -auto-approve
+Roadmap
+Planned enhancements:
 
-🧠 Why This Project Exists
-This project was built to practice and demonstrate:
+Grafana + Prometheus as ECS services
 
-Systems thinking
+Burn-rate SLO alerting (fast/slow windows)
 
-Production failure handling
-
-Observability maturity
-
-Incident leadership
-
-Infrastructure discipline
-
-It is intentionally opinionated and operationally focused.
-
-🔮 Future Work
-Planned expansions:
-
-Prometheus + Grafana as ECS services
-
-Burn-rate SLO alerting
-
-Slack / PagerDuty integration
+Slack/PagerDuty alert routing
 
 Canary deployments
 
-Cost-based scaling guardrails
+Policy as Code (OPA / Terraform Guardrails)
 
-Policy-as-code for Terraform
-
-🧾 Author
-Built by Dan Heck
-Infrastructure / Reliability Engineer
-10+ years production experience
+Author
+Dan Heck
+Infrastructure & Reliability Engineer (10+ years production)
+Happy to discuss design, incident handling, or architectural choices.
