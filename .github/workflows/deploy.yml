@@ -1,7 +1,6 @@
 name: build-and-deploy-api
 
 on:
-  workflow_dispatch:
   push:
     branches: [ "main" ]
     paths:
@@ -15,30 +14,79 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS via OIDC
+      - name: Verify required secrets are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${{ secrets.AWS_ROLE_ARN }}"
+          : "${{ secrets.AWS_REGION }}"
+          : "${{ secrets.ECR_REPO }}"
+          : "${{ secrets.ECS_CLUSTER }}"
+          : "${{ secrets.ECS_SERVICE }}"
+          echo "✅ Required secrets found."
+
+      - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Confirm AWS identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws sts get-caller-identity
+
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push image
+      - name: Build, tag, and push Docker image to ECR
+        shell: bash
         env:
           ECR_REPO: ${{ secrets.ECR_REPO }}
+          SHA: ${{ github.sha }}
         run: |
-          docker build -t api:latest services/api
-          docker tag api:latest ${ECR_REPO}:latest
+          set -euo pipefail
+
+          # Build
+          docker build -t api:${SHA} services/api
+
+          # Tag both SHA and latest
+          docker tag api:${SHA} ${ECR_REPO}:${SHA}
+          docker tag api:${SHA} ${ECR_REPO}:latest
+
+          # Push
+          docker push ${ECR_REPO}:${SHA}
           docker push ${ECR_REPO}:latest
 
+          echo "✅ Pushed ${ECR_REPO}:${SHA} and :latest"
+
       - name: Force new ECS deployment
+        shell: bash
         env:
           CLUSTER: ${{ secrets.ECS_CLUSTER }}
           SERVICE: ${{ secrets.ECS_SERVICE }}
         run: |
-          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" --force-new-deployment
+          set -euo pipefail
+          aws ecs update-service \
+            --cluster "$CLUSTER" \
+            --service "$SERVICE" \
+            --force-new-deployment
+
+      - name: Wait for ECS service to stabilize
+        shell: bash
+        env:
+          CLUSTER: ${{ secrets.ECS_CLUSTER }}
+          SERVICE: ${{ secrets.ECS_SERVICE }}
+        run: |
+          set -euo pipefail
+          aws ecs wait services-stable \
+            --cluster "$CLUSTER" \
+            --services "$SERVICE"
+          echo "✅ ECS service is stable."
+
