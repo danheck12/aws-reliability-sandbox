@@ -7,6 +7,19 @@ This project demonstrates **reliability ownership end-to-end**: infrastructure a
 
 ---
 
+## Table of Contents
+- [Goals](#-goals)
+- [Architecture](#-architecture)
+- [Tech Stack](#-tech-stack)
+- [Repository Structure](#-repository-structure)
+- [Getting Started](#-getting-started)
+- [Reliability Model](#-reliability-model)
+- [Controlled Failure](#-controlled-failure)
+- [Incident Response](#-incident-response)
+- [CI/CD](#-cicd)
+- [Cost Awareness](#-cost-awareness)
+- [Future Work](#-future-work)
+
 ## 🎯 Goals
 
 - Demonstrate **reliability as an engineering discipline**, not just “DevOps tooling”
@@ -82,6 +95,89 @@ Deployments are handled via **GitHub Actions using AWS OIDC (no static credentia
 └── .github/workflows/ # CI/CD pipelines
 
 ---
+
+---
+
+## Getting Started
+
+> These steps provision real AWS infrastructure. Make sure you understand the cost implications before applying.
+
+### Prerequisites
+
+- AWS account with admin access
+- AWS CLI configured (`aws sts get-caller-identity` should work)
+- Terraform ≥ 1.5
+- Docker
+- GitHub account with repo access
+
+### Clone the repo
+
+git clone git@github.com:danheck12/aws-reliability-sandbox.git
+cd aws-reliability-sandbox
+Provision infrastructure
+bash
+Copy code
+cd terraform/envs/staging
+terraform init
+terraform apply -auto-approve
+Build & deploy the API
+Deployment is handled via GitHub Actions using AWS OIDC.
+
+Any push to main that changes services/api will:
+
+Build the container
+
+Push to ECR
+
+Deploy to ECS
+
+To trigger a deploy:
+
+bash
+Copy code
+git commit --allow-empty -m "Trigger deploy"
+git push
+Validate
+bash
+Copy code
+curl http://<ALB_DNS>/healthz
+curl http://<ALB_DNS>/metrics
+You should see:
+
+Healthy response from /healthz
+
+Prometheus metrics output from /metrics
+
+yaml
+Copy code
+
+---
+
+# 4️⃣ Why this structure matters (career-level insight)
+
+This layout tells a reviewer:
+
+> “This person thinks in terms of systems lifecycle, not just tools.”
+
+Specifically:
+- **TOC at top** → you respect reader time
+- **Getting Started before Reliability** → you understand onboarding flow
+- **Reliability sections grouped** → you’re framing this as an operational platform
+
+That’s exactly how senior infra/SRE docs are written internally at good companies.
+
+---
+
+# 5️⃣ What I want you to do now
+
+1. Add the **Table of Contents** under the intro
+2. Add the **Getting Started** section after Repository Structure
+3. Commit and push:
+
+```bash
+git add README.md
+git commit -m "Add table of contents and getting started section to README"
+git push
 
 ## 📊 Reliability Model
 
