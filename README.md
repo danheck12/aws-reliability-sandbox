@@ -1,6 +1,6 @@
 # AWS Reliability Sandbox
 
-![GitHub Workflow Status](https://github.com/danheck12/aws-reliability-sandbox/actions/workflows/deploy.yml/badge.svg)
+![Terraform Validate](https://img.shields.io/badge/Terraform-validated-brightgreen)
 ![GitHub Workflow Status](https://github.com/danheck12/aws-reliability-sandbox/actions/workflows/deploy.yml/badge.svg)
 
 
