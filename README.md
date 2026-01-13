@@ -1,5 +1,10 @@
 # AWS Reliability Sandbox
 
+![GitHub Workflow Status](https://github.com/danheck12/aws-reliability-sandbox/actions/workflows/deploy.yml/badge.svg)
+
+![Terraform Validate](https://img.shields.io/badge/Terraform-validated-brightgreen)
+
+
 Production-style reliability engineering sandbox built on AWS using ECS Fargate, Terraform, GitHub Actions, and Prometheus/Grafana.  
 This project demonstrates **reliability ownership end-to-end**: infrastructure as code, observability, SLO-driven alerting, controlled failure, incident response, and automation.
 
