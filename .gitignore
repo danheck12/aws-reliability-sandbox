@@ -1,0 +1,21 @@
+# Terraform (cache dirs)
+**/.terraform/*
+
+# Terraform state (never commit)
+*.tfstate
+*.tfstate.*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
+*.log

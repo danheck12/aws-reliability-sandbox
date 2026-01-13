@@ -1,0 +1,24 @@
+groups:
+- name: api-alerts
+  rules:
+  - alert: ApiHigh5xxRate
+    expr: |
+      sum(rate(http_requests_total{status="500"}[5m]))
+      /
+      sum(rate(http_requests_total[5m])) > 0.02
+    for: 5m
+    labels:
+      severity: page
+    annotations:
+      summary: "API 5xx rate > 2% (5m)"
+      runbook: "runbooks/elevated-5xx.md"
+
+  - alert: ApiHighLatencyP95
+    expr: |
+      histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.3
+    for: 10m
+    labels:
+      severity: ticket
+    annotations:
+      summary: "API p95 latency > 300ms"
+      runbook: "runbooks/high-latency.md"

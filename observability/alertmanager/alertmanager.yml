@@ -1,0 +1,5 @@
+route:
+  receiver: "default"
+receivers:
+  - name: "default"
+    # Add Slack/PagerDuty later; for now, it just accepts alerts.
